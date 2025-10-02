@@ -1,0 +1,41 @@
+name: Sync Fork with Upstream via Pull Request
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # se ejecuta todos los días a medianoche UTC
+  workflow_dispatch:     # permite ejecutarlo manualmente desde GitHub
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/PlayPro/CoreProtect.git
+
+      - name: Fetch upstream
+        run: git fetch upstream
+
+      - name: Create branch for PR
+        run: |
+          git checkout -b upstream-sync
+          git merge upstream/master --no-commit || echo "Merge conflicts detected"
+          git push -u origin upstream-sync   # ← subimos la rama a tu fork
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Sync from upstream/master"
+          branch: upstream-sync
+          title: "Sync from upstream/master"
+          body: |
+            This pull request updates the fork with changes from the upstream repository.
+            Conflicts in workflows are not overwritten.
+          base: master
